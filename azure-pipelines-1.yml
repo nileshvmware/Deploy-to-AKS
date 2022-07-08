@@ -11,7 +11,6 @@ resources:
 variables:
   imageRepo: sampleapp
   tag: '$(Build.BuildId)'
-
 stages:
 - stage: Build
   displayName: Build image
@@ -39,35 +38,41 @@ stages:
   displayName: deploy to Dev
   dependsOn: Build
   variables:
-      acrsecert:
-  jobs: 
-      - job: Deploy 
-        displayName: Deploy to AKS
-        pool: 
-          vmImage: ubuntu-latest
-        strategy:
-          runonce:
-            deploy:
-        steps:              
-              - task: DownloadPipelineArtifact@2
-                inputs:
-                  buildType: 'current'
-                  artifactName: 'manifest'
-                  targetPath: '$(Pipeline.Workspace)/manifests'
-              - task: KubernetesManifest@0
-                inputs: 
-                  action: 'createSecret'
-                  kubernetesServiceConnection: 'akspr'
-                  namespace: 'monitoring'
-                  secretType: 'dockerRegistry'
-                  secretName: 'acrsecret'
-                  dockerRegistryEndpoint: 'aksregistry'
-              - task: KubernetesManifest@0
-                inputs:
-                  action: 'deploy'
-                  kubernetesServiceConnection: 'akspr'
-                  namespace: 'monitoring'
-                  manifests: 
-                     $(Pipeline.Workspace)/manifests/deployment.yml
-                     $(Pipeline.Workspace)/manifests/service.yml
+      acrsecert:  
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy to AKS
+    environment: 'k8sdev.default'
+    pool: 
+      vmImage: ubuntu-latest
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'manifests'
+              targetPath: '$(Pipeline.Workspace)/manifests'            
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'manifest'
+              targetPath: '$(Pipeline.Workspace)/manifests'
+          - task: KubernetesManifest@0
+            inputs: 
+              action: 'createSecret'
+              kubernetesServiceConnection: 'akspr'
+              namespace: 'monitoring'
+              secretType: 'dockerRegistry'
+              secretName: 'acrsecret'
+              dockerRegistryEndpoint: 'aksregistry'
+          - task: KubernetesManifest@0
+            inputs:
+              action: 'deploy'
+              kubernetesServiceConnection: 'akspr'
+              namespace: 'monitoring'
+              manifests: 
+                $(Pipeline.Workspace)/manifests/deployment.yml
+                $(Pipeline.Workspace)/manifests/service.yml
 
