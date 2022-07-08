@@ -22,57 +22,52 @@ stages:
       vmImage: ubuntu-latest
     steps:
     - task: Docker@2
-      displayName: Build an image
+      displayName: Build an image      
       inputs:
-        command: build
-        dockerfile: '- task: Docker@2
-  inputs:
-    containerRegistry: 'aksregistry'
-    repository: '$(imageRepo)'
-    command: 'buildAndPush'
-    Dockerfile: '$(Build.SourcesDirectory)/app/Dockerfile'
-    tags: |
-      $(tag)
-      latest'
+        containerRegistry: 'aksregistry'
+        repository: '$(imageRepo)'
+        command: 'buildAndPush'      
+        Dockerfile: '$(Build.SourcesDirectory)/app/Dockerfile'
         tags: |
           $(tag)
-          latest
-- task: PublishPipelineArtifact@1
-  inputs:
-    targetPath: '$(Pipeline.Workspace)/s/kubernetes'
-    artifact: 'manisfests'
-    publishLocation: 'pipeline'
+    - task: PublishPipelineArtifact@1
+      inputs:
+         targetPath: '$(Pipeline.Workspace)/s/kubernetes'
+         artifact: 'manisfests'
+         publishLocation: 'pipeline'
 - stage: Deploy
   displayName: deploy to Dev
-  dependson: Build
+  dependsOn: Build
   variables:
-    acrsecert:
+      acrsecert:
   jobs: 
-    - job: Deploy 
-      displayName: Deploy to AKS
-      pool: 
-         vmImage: ubuntu-latest
-      steps:
-      
-- task: DownloadPipelineArtifact@2
-  inputs:
-    buildType: 'current'
-    artifactName: 'manifest'
-    targetPath: '$(Pipeline.Workspace)/manifests'
-- task: KubernetesManifest@0
-  inputs:
-    action: 'createSecret'
-    kubernetesServiceConnection: 'akspr'
-    namespace: 'monitoring'
-    secretType: 'dockerRegistry'
-    secretName: 'acrsecret'
-    dockerRegistryEndpoint: 'aksregistry'
-- task: KubernetesManifest@0
-  inputs:
-    action: 'deploy'
-    kubernetesServiceConnection: 'akspr'
-    namespace: 'monitoring'
-    manifests: 
-           $(Pipeline.Workspace)/manifests/deployment.yml
-           $(Pipeline.Workspace)/manifests/service.yml
+      - job: Deploy 
+        displayName: Deploy to AKS
+        pool: 
+          vmImage: ubuntu-latest
+        strategy:
+          runonce:
+            deploy:
+        steps:              
+              - task: DownloadPipelineArtifact@2
+                inputs:
+                  buildType: 'current'
+                  artifactName: 'manifest'
+                  targetPath: '$(Pipeline.Workspace)/manifests'
+              - task: KubernetesManifest@0
+                inputs: 
+                  action: 'createSecret'
+                  kubernetesServiceConnection: 'akspr'
+                  namespace: 'monitoring'
+                  secretType: 'dockerRegistry'
+                  secretName: 'acrsecret'
+                  dockerRegistryEndpoint: 'aksregistry'
+              - task: KubernetesManifest@0
+                inputs:
+                  action: 'deploy'
+                  kubernetesServiceConnection: 'akspr'
+                  namespace: 'monitoring'
+                  manifests: 
+                     $(Pipeline.Workspace)/manifests/deployment.yml
+                     $(Pipeline.Workspace)/manifests/service.yml
 
